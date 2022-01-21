@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "start": "node index",
+    "deploy": "node deploy"
+  },
+  "dependencies": {
+    "@discordjs/rest": "^0.2.0-canary.0",
+    "discord-api-types": "^0.26.1",
+    "discord.js": "^13.5.1",
+    "dotenv": "^10.0.0",
+    "js-yaml": "^4.1.0",
+    "pastebin-api": "^3.0.0"
+  },
+  "name": "siribot",
+  "description": "A Discord bot written in Nodejs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
