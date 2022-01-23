@@ -32,23 +32,30 @@ const rest = new REST({
 updateLine(logger.log('Searching for commands', ['Deploying']));
 
 const commands = [];
-let commandCategories = fs.readdirSync(`${storagePath}/commands`);
+let commandNames = [];
+let commandCategories = fs.readdirSync(`${storagePath}/bot_modules`);
 
 const configs = require('./functions/utilities/getConfigs');
 
 for (let commandCategory of commandCategories) {
 
-    commandCategory = `${storagePath}/commands/${commandCategory}`
+    commandCategory = `${storagePath}/bot_modules/${commandCategory}`
     const commandFiles = fs.readdirSync(commandCategory).filter(file => file.endsWith('.js'));
 
     for (const commandFile of commandFiles) {
         const command = require(`${commandCategory}/${commandFile}`);
-        let commandName = command.data.name;
-        if (configs.master.commands[commandName] === undefined || configs.master.commands[commandName].enable) {
-            commands.push(command.data.toJSON());
-            updateLine(logger.log(`${commandName} is enabled`, ['Deploying']));
-        } else {
-            updateLine(logger.log(`${commandName} is disabled`, ['Deploying']));
+        if (command.isCommand) {
+            let commandName = command.data.name;
+            if (configs.master.commands[commandName] === undefined || configs.master.commands[commandName].enabled) {
+                if (commandNames.includes(commandName)) {
+                    updateLine(logger.log(`${commandName} already exist, skipping this file`['Error/Duplicated']));
+                    continue;
+                }
+                commands.push(command.data.toJSON());
+                updateLine(logger.log(`${commandName} is enabled`, ['Deploying']));
+            } else {
+                updateLine(logger.log(`${commandName} is disabled`, ['Deploying']));
+            }
         }
     }
 }

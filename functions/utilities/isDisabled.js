@@ -1,37 +1,54 @@
-function isDisabled(configs, commandName, guildID, buttonName) {
+function isDisabled({ configs, commandName, guildID, buttonName, type, subcommandName, selectmenuName }) {
     try {
-        if (configs[guildID] === undefined) {
-
-            if (buttonName) {
-                return { disabled: !(configs.master.commands[commandName].buttons[buttonName].enable && configs.master.commands[commandName].enable), reason: 'button' };
-            } else {
-                return { disabled: !(configs.master.commands[commandName].enable && (guildID === 'dm') ? configs.master.commands[commandName]['allow-dm'] : true), reason: 'command' };
-            }
-
-        } else {
-
-            let disabled;
-            const isDM = guildID === 'dm';
-
-            if (configs[guildID].commands[commandName] === undefined) {
-
-                if (buttonName) {
-                    return { disabled: !(configs.master.commands[commandName].buttons[buttonName].enable && configs.master.commands[commandName].enable), reason: isDM ? 'button-dm' : 'button' };
-                } else {
-                    return { disabled: !(configs.master.commands[commandName].enable && (guildID === 'dm') ? configs.master.commands[commandName]['allow-dm'] : true), reason: isDM ? 'command-dm' : 'command' };
-                }
-
-            } else {
-
-                if (buttonName) {
-                    return { disabled: !(configs[guildID].commands[commandName].buttons[buttonName].enable && configs[guildID].commands[commandName].enable), reason: isDM ? 'button-dm' : 'button' };
-                } else {
-                    return { disabled: !(configs[guildID].commands[commandName].enable && (guildID === 'dm') ? configs[guildID].commands[commandName]['allow-dm'] : true), reason: isDM ? 'command-dm' : 'command' };
-                }
-
-            }
+        if (guildID === null) {
+            guildID = 'dm';
         }
-    } catch (_) {
+
+        switch (type) {
+            case 'command':
+                if (configs[guildID] === undefined || configs[guildID].commands[commandName] === undefined || configs[guildID].commands[commandName].enabled === undefined) {
+                    guildID = 'master';
+                }
+                if ((!configs.master.commands[commandName]['allow-dm']) && (guildID === 'dm')) {
+                    return { disabled: true, reason: 'command-dm' };
+                }
+
+                return { disabled: !configs[guildID].commands[commandName].enabled, reason: 'command' };
+
+            case 'button':
+                if (configs[guildID] === undefined || configs[guildID].commands[commandName] === undefined || configs[guildID].commands[commandName].buttons === undefined || configs[guildID].commands[commandName].buttons === undefined || configs[guildID].commands[commandName].buttons[buttonName] === undefined) {
+                    guildID = 'master';
+                }
+
+                if ((!configs.master.commands[commandName]['allow-dm'] || !configs.master.commands[commandName].buttons[buttonName]['allow-dm']) && guildID === 'dm') {
+                    return { disabled: true, reason: 'button-dm' };
+                }
+
+                return { disabled: !configs[guildID].commands[commandName].enabled, reason: 'button' };
+
+            case 'subcommand':
+                if (configs[guildID] === undefined || configs[guildID].commands[commandName] === undefined || configs[guildID].commands[commandName].subcommands === undefined || configs[guildID].commands[commandName].subcommands[subcommandName] === undefined) {
+                    guildID = 'master';
+                }
+                if (((!configs.master.commands[commandName]['allow-dm']) || (!configs.master.commands[commandName].subcommands[subcommandName]['allow-dm'])) && (guildID === 'dm')) {
+                    return { disabled: true, reason: 'command-dm' };
+                }
+
+                return { disabled: !(configs[guildID].commands[commandName].subcommands[subcommandName].enabled && configs[guildID].commands[commandName].enabled), reason: 'command' };
+
+            case 'selectmenu':
+                if (configs[guildID] === undefined || configs[guildID].commands[commandName] === undefined || configs[guildID].commands[commandName].selectmenus === undefined || configs[guildID].commands[commandName].selectmenus[selectmenuName] === undefined) {
+                    guildID = 'master';
+                }
+                if (((!configs.master.commands[commandName]['allow-dm']) || (!configs.master.commands[commandName].selectmenus[selectmenuName]['allow-dm'])) && (guildID === 'dm')) {
+                    return { disabled: true, reason: 'selectmenu-dm' };
+                }
+
+                return { disabled: !(configs[guildID].commands[commandName].selectmenus[selectmenuName].enabled && configs[guildID].commands[commandName].enabled), reason: 'command' };
+
+        }
+    } catch (err) {
+        console.error(err);
         return { disabled: false };
     }
 }
