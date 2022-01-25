@@ -112,7 +112,7 @@ client.once('ready', client => {
         const { messageUser, messageChannel } = require(`${storagePath}/messages/startup`);
 
         // send startup messages to users
-        for (let i = 0; i < users.length; i++) {
+        for (const i in users) {
             getsDiscord.getUser(client, users[i], function (user) {
                 user.send(messageUser({ client, user, MessageEmbed })).then(() => {
                     sent++;
@@ -121,7 +121,7 @@ client.once('ready', client => {
                     if (sent === totalMessages) {
                         readyPrint();
                     }
-                }).catch(_ => {
+                }).then(()=>{}).catch(_ => {
                     sent++;
                     failed++;
                     updateLine(logger.log(`Sending startup messages [Success: ${success} | Failed: ${failed} | Progress: ${sent}/${totalMessages}]`, ['Starting']));
@@ -133,7 +133,7 @@ client.once('ready', client => {
         }
 
         // send startup messages to channels
-        for (let i = 0; i < channels.length; i++) {
+        for (i in channels) {
             getsDiscord.getChannel(client, channels[i], function (channel) {
                 channel.send(messageChannel({ client, channel, MessageEmbed })).then(() => {
                     sent++;
@@ -168,6 +168,8 @@ client.on('interactionCreate', async (inter) => {
         }
 
         if (inter.isCommand()) {
+            const commandName = inter.commandName;
+            const command = client.commands.get(commandName);
             try {
                 let guildID;
                 if (inter.guild) {
@@ -175,8 +177,6 @@ client.on('interactionCreate', async (inter) => {
                 } else {
                     guildID = 'dm';
                 }
-                const commandName = inter.commandName;
-                const command = client.commands.get(commandName);
 
                 if (inter.options['_subcommand'] === null) {
 
@@ -196,10 +196,12 @@ client.on('interactionCreate', async (inter) => {
                         }
                     }
                 } else {
+                    const subcommandName = inter.options['_subcommand'];
+
+                    console.log(logger.log(`User: ${inter.user.username}#${inter.user.discriminator} | User ID: ${inter.user.id} | Command: ${commandName}/${subcommandName} | Superuser: ${su}`, ['Interaction/Command']));
                     if (su) {
                         await command.subcommands[subcommandName](inter, { client, storagePath, logger, botPath, superusers, paste }, commandCallbacks);
                     } else {
-                        const subcommandName = inter.options['_subcommand'];
                         console.log(logger.log(`User: ${inter.user.username}#${inter.user.discriminator} | User ID: ${inter.user.id} | Command: ${commandName}/${subcommandName} | Superuser: ${su}`, ['Interaction/Subcommand']));
                         const disabled = isDisabled({ configs, commandName, guildID, subcommandName: inter.options['_subcommand'], type: 'subcommand' });
                         const cooldown = getCooldown(inter.user.id, { storagePath, botPath, commandName, subcommandName, type: 'subcommand', run: true, guildID });
@@ -292,8 +294,7 @@ client.on('interactionCreate', async (inter) => {
             }
         }
     }
-})
-
+});
 
 // Log on to Discord
 client.login(process.env.BOT_TOKEN)

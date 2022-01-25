@@ -13,14 +13,14 @@ function log(message, tags) {
     const seconds = now.getSeconds();
     let tagsString = `[${hours < 10 ? `0${hours}` : now.getHours()}:${minutes < 10 ? `0${minutes}` : minutes}:${seconds < 10 ? `0${seconds}` : seconds}]`;
 
-    for (let i = 0; i < tags.length; i++) {
+    for (const i in tags) {
         tagsString += ` [${tags[i]}]`;
     }
 
     let string = "";
     const splitted = message.split("\n");
 
-    for(let i = 0; i < splitted.length; i++) {
+    for (const i in splitted) {
         string += `\n${tagsString}: ${splitted[i]}`;
     }
 

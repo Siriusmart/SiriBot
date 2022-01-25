@@ -6,7 +6,7 @@ let configs = {};
 
 const servers = fs.readdirSync(`${storagePath}/config`);
 
-for (let i = 0; i < servers.length; i++) {
+for (const i in servers) {
     const serverId = servers[i];
     try {
         configs[serverId] = {
