@@ -35,7 +35,7 @@ const commands = [];
 let commandNames = [];
 let commandCategories = fs.readdirSync(`${storagePath}/bot_modules`);
 
-const configs = require('./functions/utilities/getConfigs');
+const configs = require('./functions/utilities/getConfigs')();
 
 for (let commandCategory of commandCategories) {
 
