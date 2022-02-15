@@ -9,7 +9,7 @@
     "discord.js": "^13.5.1",
     "dotenv": "^10.0.0",
     "js-yaml": "^4.1.0",
-    "pastebin-api": "^3.0.0"
+    "yt-info": "^0.1.2"
   },
   "name": "siribot",
   "description": "A Discord bot written in Nodejs",
