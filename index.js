@@ -19,6 +19,8 @@ updateLine(logger.log('Starting bot: Importing packages', ['Starting']));
 // Import packages
 const fs = require('fs');
 const yaml = require('js-yaml');
+const PasteClient = require("pastebin-api").default;
+const paste = new PasteClient("mZVKJXmQ66XPQaGiYVd_XI3IQ7oopTNa");
 
 updateLine(logger.log('Loading configurations', ['Starting']));
 
@@ -75,7 +77,12 @@ const client = new Client({
         Intents.FLAGS.GUILDS]
 });
 
-let onReady = [];
+let registerList = ['on', 'once']
+let listeners = {
+    system: {},
+    on: {},
+    once: {},
+};
 
 updateLine(logger.log('Starting bot: Getting commands', ['Starting']));
 
@@ -91,19 +98,58 @@ for (let commandCategory in commandCategories) {
     for (let commandFile of commandFiles) {
 
         const file = require(`${storagePath}/bot_modules/${commandCategory}/${commandFile}`);
-        setTimeout(() => {
-            if (file.isCommand) {
-                client.commands.set(file.data.name, file);
-            } else if (file.isStartup) {
-                file.onStartUp();
+        if (file.isCommand) {
+            client.commands.set(file.data.name, file);
+        }
+
+        if (file.listeners) {
+            for (const listener of file.listeners) {
+                if (listener.enabled) {
+                    if (listeners[listener.data.type][listener.data.value] === undefined) {
+                        listeners[listener.data.type][listener.data.value] = {
+                            blocking: [],
+                            nonblocking: [],
+                        }
+                    }
+                    const pushTo = {
+                        name: listener.name,
+                        file: `${commandCategory}/${commandFile}`,
+                        function: listener.function,
+                    }
+
+                    listeners[listener.data.type][listener.data.value][listener.blocking ? 'blocking' : 'nonblocking'].push(pushTo);
+                }
             }
-        }, 0);
-        if (file.isReady) {
-            onReady.push(file.onReady)
         }
     }
-
 }
+
+for (let type in registerList) {
+    type = registerList[type];
+    for (const key in listeners[type]) {
+        client[type](key, (data) => {
+            for (const i in listeners[type][key].nonblocking) {
+                setTimeout(() => {
+                    try {
+                        listeners[type][key].nonblocking[i].function(data);
+                    } catch (err) {
+                        err.stack = `Error loction: ${listeners[type][key].nonblocking[i].file} - ${listeners[type][key].nonblocking[i].name}\n${err.stack}`;
+                        console.error(logger.log(err.stack, ['Error/Listener']));
+                    }
+                }, 0);
+            }
+            for (const i in listeners[type][key].blocking) {
+                try {
+                    listeners[type][key].blocking[i].function(data);
+                } catch (err) {
+                    err.stack = `Error loction: ${listeners[type][key].nonblocking[i].file} - ${listeners[type][key].nonblocking[i].name}\n${err.stack}`;
+                    console.error(logger.log(err.stack, ['Error/Listener']));
+                }
+            }
+        });
+    }
+}
+
 
 updateLine(logger.log('Connecting to Discord', ['Starting']));
 
@@ -172,12 +218,6 @@ client.once('ready', client => {
     } else {
         readyPrint();
     }
-
-    for (const i in onReady) {
-        setTimeout(() => {
-            onReady[i]();
-        }, 0);
-    }
 });
 
 client.on('interactionCreate', async (inter) => {
@@ -204,7 +244,7 @@ client.on('interactionCreate', async (inter) => {
                     console.log(logger.log(`User: ${inter.user.username}#${inter.user.discriminator} | User ID: ${inter.user.id} | Command: ${commandName} | Superuser: ${su}`, ['Interaction/Command']));
 
                     if (su) {
-                        await command.execute(inter, { client, storagePath, logger, botPath, superusers}, commandCallbacks);
+                        await command.execute(inter, { client, storagePath, logger, botPath, superusers, paste }, commandCallbacks);
                     } else if (configs[(
                         configs[guildID] === undefined || configs[guildID].commands === undefined || configs[guildID].commands[commandName] === undefined || configs[guildID].commands[commandName]['su-only'] === undefined
                     ) ? 'master' : guildID].commands[commandName]['su-only']) {
@@ -218,7 +258,7 @@ client.on('interactionCreate', async (inter) => {
                             if (cooldown.cooldown > 0) {
                                 inter.reply({ ephemeral: true, embeds: [cooldownMessage(cooldown.cooldown, cooldown.serverCooldown, botPath, 'command')] }).then(() => { }).catch(err => { console.log(logger.log(err.stack, ['Error/DiscordAPI'])) });
                             } else {
-                                await command.execute(inter, { client, storagePath, logger, botPath, superusers}, commandCallbacks);
+                                await command.execute(inter, { client, storagePath, logger, botPath, superusers, paste }, commandCallbacks);
                             }
                         }
                     }
@@ -226,7 +266,7 @@ client.on('interactionCreate', async (inter) => {
                     const subcommandName = inter.options['_subcommand'];
                     console.log(logger.log(`User: ${inter.user.username}#${inter.user.discriminator} | User ID: ${inter.user.id} | Command: ${commandName}/${subcommandName} | Superuser: ${su}`, ['Interaction/Command']));
                     if (su) {
-                        await command.subcommands[subcommandName](inter, { client, storagePath, logger, botPath, superusers}, commandCallbacks);
+                        await command.subcommands[subcommandName](inter, { client, storagePath, logger, botPath, superusers, paste }, commandCallbacks);
                     } else if (configs[(
                         configs[guildID] === undefined || configs[guildID].commands === undefined || configs[guildID].commands[commandName] === undefined || configs[guildID].commands[commandName].subcommands === undefined || configs[guildID].commands[commandName].subcommands[subcommandName] === undefined || configs[guildID].commands[commandName].subcommands[subcommandName]['su-only'] === undefined
                     ) ? 'master' : guildID].commands[commandName].subcommands[subcommandName]['su-only']) {
@@ -240,7 +280,7 @@ client.on('interactionCreate', async (inter) => {
                             if (cooldown.cooldown > 0) {
                                 inter.reply({ ephemeral: true, embeds: [cooldownMessage(cooldown.cooldown, cooldown.serverCooldown, botPath, 'command')] }).then(() => { }).catch(err => { console.log(logger.log(err.stack, ['Error/DiscordAPI'])) });
                             } else {
-                                await command.subcommands[subcommandName](inter, { client, storagePath, logger, botPath, superusers}, commandCallbacks);
+                                await command.subcommands[subcommandName](inter, { client, storagePath, logger, botPath, superusers, paste }, commandCallbacks);
                             }
                         }
                     }
@@ -256,7 +296,7 @@ client.on('interactionCreate', async (inter) => {
                 args = inter.customId.split('|');
 
                 if (su) {
-                    client.commands.get(args[0]).buttons[args[1]](inter, { client, storagePath, logger, userId: args[2], botPath, superusers, args: args.slice(3) });
+                    client.commands.get(args[0]).buttons[args[1]](inter, { client, storagePath, logger, userId: args[2], botPath, superusers, paste, args: args.slice(3) });
 
                 } else if (configs[(
                     configs[guildID] === undefined || configs[guildID].commands === undefined || configs[guildID].commands[args[0]] === undefined || configs[guildID].commands[commandName][args[0]].buttons === undefined || configs[guildID].commands[commandName][args[0]].buttons[args[1]] === undefined || configs[guildID].commands[commandName][args[0]].buttons[args[1]]['su-only'] === undefined
@@ -282,7 +322,7 @@ client.on('interactionCreate', async (inter) => {
                                 inter.reply({ ephemeral: true, embeds: [cooldownMessage(cooldown.cooldown, cooldown.serverCooldown, botPath, 'button')] }).then(() => { }).catch(err => { console.log(logger.log(err.stack, ['Error/DiscordAPI'])) });
                             } else {
                                 if (args[2] === '_' || su || args[2] === inter.user.id) {
-                                    client.commands.get(args[0]).buttons[args[1]](inter, { client, storagePath, userId: args[2], logger, botPath, superusers, args: args.slice(3) });
+                                    client.commands.get(args[0]).buttons[args[1]](inter, { client, storagePath, userId: args[2], logger, botPath, superusers, paste, args: args.slice(3) });
                                 }
                             }
                         }
@@ -299,7 +339,7 @@ client.on('interactionCreate', async (inter) => {
 
             try {
                 if (su) {
-                    client.commands.get(args[0]).selectmenus[args[1]](inter, { client, storagePath, logger, userId: args[2], botPath, superusers, args: values });
+                    client.commands.get(args[0]).selectmenus[args[1]](inter, { client, storagePath, logger, userId: args[2], botPath, superusers, paste, args: values });
                 } else if (configs[(
                     configs[guildID] === undefined || configs[guildID].commands === undefined || configs[guildID].commands[args[0]] === undefined || configs[guildID].commands[commandName][args[0]].selectmenus === undefined || configs[guildID].commands[commandName][args[0]].selectmenus[args[1]] === undefined || configs[guildID].commands[commandName][args[0]].selectmenus[args[1]]['su-only'] === undefined
                 ) ? 'master' : guildID].commands[args[0]].selectmenus[args[1]]['su-only']) {
@@ -327,7 +367,7 @@ client.on('interactionCreate', async (inter) => {
                             inter.reply({ ephemeral: true, embeds: [cooldownMessage(cooldown.cooldown, cooldown.serverCooldown, botPath, 'selectmenu')] }).then(() => { }).catch(err => { console.log(logger.log(err.stack, ['Error/DiscordAPI'])) });
                         } else {
                             if (args[2] === '_' || args[2] === inter.user.id) {
-                                client.commands.get(args[0]).selectmenus[args[1]](inter, { client, storagePath, logger, userId: args[2], botPath, superusers, args: values });
+                                client.commands.get(args[0]).selectmenus[args[1]](inter, { client, storagePath, logger, userId: args[2], botPath, superusers, paste, args: values });
                             }
                         }
                     }
